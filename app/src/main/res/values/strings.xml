@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">KnowWeather</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Location search</string>
+    <string name="title_notifications">Bookmark</string>
+    <string name="menu_search">Search fund …</string>
+    <string name="city_watchlist">Bookmarked cities</string>
+    <string name="no_cities">You do not have any cities bookmarked,\nsearch and bookmark cities</string>
+    <string name="bookmark_city">Do you want to bookmark this location?</string>
+    <string name="add_bookmark">Bookmark</string>
+    <string name="city_forecast">Forecast</string>
+    <string name="humidity">Humidity: %1$d</string>
+    <string name="wind">Wind: %.1fm/s</string>
+    <string name="rain">Rain: %1$s</string>
+    <string name="temparature">%.0f\u2103</string>
+    <string name="weather_info">%1$s</string>
+    <string name="feels_like">Feels like %.0f\u2103</string>
+    <string name="user_location">Hi, You are at %1$s</string>
+    <string name="bookmark_location">%1$s</string>
+    <string name="google_maps_api">AIzaSyC9TLewnRX3gnHh4ao_pZQ6iJi1hffH0M0</string>
+</resources>
