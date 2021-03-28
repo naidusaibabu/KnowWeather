@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Looper
 import android.view.*
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
@@ -15,13 +16,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.weatherapp.R
+import com.example.weatherapp.WeatherApplication
 import com.example.weatherapp.databinding.FragmentHomeBinding
 import com.example.weatherapp.repo.WeatherAppRepository
 import com.example.weatherapp.repo.db.room.BookmarkDataBase
-import com.example.weatherapp.ui.WeatherAppViewModelFactory
 import com.example.weatherapp.ui.WeatherAppViewModel
+import com.example.weatherapp.ui.WeatherAppViewModelFactory
 import com.example.weatherapp.util.Constants.Companion.LOCATION_PERMISSION_REQUEST_CODE
 import com.example.weatherapp.util.RainChance.Companion.getRainChance
+import com.example.weatherapp.util.Resource
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -50,11 +53,15 @@ class HomeFragment : Fragment(), CityDataAdapter.OnBookmarkClickListener,
         /**
          * setting up repository and view model instances
          */
-        repository = WeatherAppRepository(BookmarkDataBase.getInstance(requireContext()).bookmarkDao())
+        repository =
+            WeatherAppRepository(BookmarkDataBase.getInstance(requireContext()).bookmarkDao())
         val navBar: BottomNavigationView = requireActivity().findViewById(R.id.nav_view)
         navBar.visibility = View.VISIBLE
         weatherAppViewModel =
-            ViewModelProvider(this, WeatherAppViewModelFactory(repository)).get(WeatherAppViewModel::class.java)
+            ViewModelProvider(
+                this,
+                WeatherAppViewModelFactory(activity?.application as WeatherApplication, repository)
+            ).get(WeatherAppViewModel::class.java)
 
         setupRecyclerView()
         /**
@@ -73,11 +80,11 @@ class HomeFragment : Fragment(), CityDataAdapter.OnBookmarkClickListener,
 
     private fun displayBookmarkedCities() {
         weatherAppViewModel.cities.observe(viewLifecycleOwner, Observer {
-            if(it.size>0) {
+            if (it.size > 0) {
                 binding.cityRV.visibility = View.VISIBLE
                 cityDataAdapter.bookmarks = it
                 cityDataAdapter.notifyDataSetChanged()
-            }else{
+            } else {
                 binding.cityRV.visibility = View.GONE
                 binding.noCitiesTV.visibility = View.VISIBLE
             }
@@ -85,21 +92,47 @@ class HomeFragment : Fragment(), CityDataAdapter.OnBookmarkClickListener,
     }
 
     private fun observeWeatherInfo() {
-        weatherAppViewModel.currentCityInfo.observe(viewLifecycleOwner, Observer {
-            binding.cityNameTV.text =
-                String.format(getString(R.string.user_location), it.name)
-            binding.weatherInfoTV.text =
-                String.format(getString(R.string.weather_info), it.weather[0].main)
-            binding.temparatureTV.text =
-                String.format(getString(R.string.temparature), it.main.temp)
-            binding.feelsLikeTV.text =
-                String.format(getString(R.string.feels_like), round(it.main.feels_like))
-            binding.humidityTV.text =
-                String.format(getString(R.string.humidity), it.main.humidity) + "%"
-            binding.windTV.text = String.format(getString(R.string.wind), it.wind.speed)
-            binding.rainTV.text =
-                String.format(getString(R.string.rain), getRainChance(it.clouds.all))
+        weatherAppViewModel.currentCityInfo.observe(viewLifecycleOwner, Observer { response ->
+            when (response) {
+                is Resource.Success -> {
+                    response.data?.let {
+                        hideProgressBar()
+                        binding.cityNameTV.text =
+                            String.format(getString(R.string.user_location), it.name)
+                        binding.weatherInfoTV.text =
+                            String.format(getString(R.string.weather_info), it.weather[0].main)
+                        binding.temparatureTV.text =
+                            String.format(getString(R.string.temparature), it.main.temp)
+                        binding.feelsLikeTV.text =
+                            String.format(getString(R.string.feels_like), round(it.main.feels_like))
+                        binding.humidityTV.text =
+                            String.format(getString(R.string.humidity), it.main.humidity) + "%"
+                        binding.windTV.text = String.format(getString(R.string.wind), it.wind.speed)
+                        binding.rainTV.text =
+                            String.format(getString(R.string.rain), getRainChance(it.clouds.all))
+                    }
+                }
+                is Resource.Error -> {
+                    hideProgressBar()
+                    response.message?.let { message ->
+                        Toast.makeText(context, "Error : $message", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                is Resource.Loading -> {
+                    showProgressBar()
+                }
+
+            }
+
         })
+    }
+
+    private fun hideProgressBar() {
+        binding.progressBar.visibility = View.INVISIBLE
+    }
+
+    private fun showProgressBar() {
+        binding.progressBar.visibility = View.VISIBLE
     }
 
     private fun fetchLocation() {
@@ -115,7 +148,7 @@ class HomeFragment : Fragment(), CityDataAdapter.OnBookmarkClickListener,
                             val latLangData: MutableMap<String, String> = mutableMapOf()
                             latLangData.put("lat", location.latitude.toString())
                             latLangData.put("lon", location.longitude.toString())
-                            repository.getCurrentCityWeatherInfo(latLangData)
+                            weatherAppViewModel.getCurrentCityWeatherInfo(latLangData)
                         }
 
                     } else {
@@ -171,14 +204,14 @@ class HomeFragment : Fragment(), CityDataAdapter.OnBookmarkClickListener,
         when (clickedItem.bookmarked) {
             true -> {
                 lifecycleScope.launch {
-                    repository.deleteCity(cityDataAdapter.bookmarks[position])
+                    weatherAppViewModel.deleteCity(cityDataAdapter.bookmarks[position])
                 }
                 cityDataAdapter.notifyItemRemoved(position)
             }
             else -> {
                 clickedItem.bookmarked = true
                 lifecycleScope.launch {
-                    repository.updateCity(clickedItem)
+                    weatherAppViewModel.updateCity(clickedItem)
                 }
                 cityDataAdapter.notifyItemChanged(position)
             }
@@ -203,7 +236,7 @@ class HomeFragment : Fragment(), CityDataAdapter.OnBookmarkClickListener,
 
     override fun onItemClick(position: Int) {
         val clickedItem = cityDataAdapter.bookmarks[position]
-        val bundle = bundleOf("lat" to clickedItem.latitude,"lon" to clickedItem.longitude)
-        findNavController().navigate(R.id.navigation_notifications,bundle)
+        val bundle = bundleOf("lat" to clickedItem.latitude, "lon" to clickedItem.longitude)
+        findNavController().navigate(R.id.navigation_notifications, bundle)
     }
 }

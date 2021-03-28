@@ -21,12 +21,13 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.weatherapp.R
+import com.example.weatherapp.WeatherApplication
 import com.example.weatherapp.databinding.FragmentDashboardBinding
 import com.example.weatherapp.repo.WeatherAppRepository
 import com.example.weatherapp.repo.db.room.Bookmark
 import com.example.weatherapp.repo.db.room.BookmarkDataBase
-import com.example.weatherapp.ui.WeatherAppViewModelFactory
 import com.example.weatherapp.ui.WeatherAppViewModel
+import com.example.weatherapp.ui.WeatherAppViewModelFactory
 import com.example.weatherapp.util.Constants.Companion.MAP_KEY
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
@@ -85,11 +86,15 @@ class LocationFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClick
         /**
          * setting up repository and view model instances
          */
-        repository = WeatherAppRepository(BookmarkDataBase.getInstance(requireContext()).bookmarkDao())
+        repository =
+            WeatherAppRepository(BookmarkDataBase.getInstance(requireContext()).bookmarkDao())
         val navBar: BottomNavigationView = requireActivity().findViewById(R.id.nav_view)
         navBar.visibility = View.VISIBLE
         weatherAppViewModel =
-            ViewModelProvider(this, WeatherAppViewModelFactory(repository)).get(WeatherAppViewModel::class.java)
+            ViewModelProvider(
+                this,
+                WeatherAppViewModelFactory(WeatherApplication(), repository)
+            ).get(WeatherAppViewModel::class.java)
         /**
          * setting up the fragment binding
          */
@@ -338,7 +343,7 @@ class LocationFragment : Fragment(), OnMapReadyCallback, GoogleMap.OnMarkerClick
             .setCancelable(false)
             .setPositiveButton("Yes", DialogInterface.OnClickListener { dialog, id ->
                 lifecycleScope.launch {
-                    repository.insertCity(
+                    weatherAppViewModel.insertCity(
                         Bookmark(
                             0,
                             myMarker.position.latitude.toString(),

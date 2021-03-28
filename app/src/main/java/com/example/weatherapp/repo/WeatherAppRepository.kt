@@ -3,11 +3,11 @@ package com.example.weatherapp.repo
 import androidx.lifecycle.MutableLiveData
 import com.example.weatherapp.repo.db.room.Bookmark
 import com.example.weatherapp.repo.db.room.BookmarkDAO
-import com.example.weatherapp.repo.models.CurrentCityInfo
 import com.example.weatherapp.repo.models.WeatherInfo
 
 class WeatherAppRepository(private val bookmarkDAO: BookmarkDAO) {
     val cities = bookmarkDAO.getCities()
+
     /**
      * checking for bookmarked bookmarks
      */
@@ -16,21 +16,12 @@ class WeatherAppRepository(private val bookmarkDAO: BookmarkDAO) {
         bookmarkDAO.getCities()
     }
 
-    val weatherInfo: MutableLiveData<WeatherInfo> = MutableLiveData()
+    suspend fun getWeatherInfo(latLangData: Map<String, String>) =
+        RetrofitInstance.weatherApi.getWeatherInfo(latLangData)
 
-    suspend fun getWeatherInfo(latLangData: Map<String, String>) {
-        val response = RetrofitInstance.weatherApi.getWeatherInfo(latLangData)
-        if (response.isSuccessful)
-            weatherInfo.postValue(response.body())
-    }
 
-    val currentCityInfo: MutableLiveData<CurrentCityInfo> = MutableLiveData()
-
-    suspend fun getCurrentCityWeatherInfo(latLangData: Map<String, String>) {
-        val response = RetrofitInstance.weatherApi.getCurrentCityWeatherInfo(latLangData)
-        if (response.isSuccessful)
-            currentCityInfo.postValue(response.body())
-    }
+    suspend fun getCurrentCityWeatherInfo(latLangData: Map<String, String>) =
+        RetrofitInstance.weatherApi.getCurrentCityWeatherInfo(latLangData)
 
     suspend fun insertCity(bookmark: Bookmark) {
         bookmarkDAO.insertCity(bookmark)
